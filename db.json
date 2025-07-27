@@ -1,0 +1,99 @@
+{
+  "games": [
+    {
+      "game_type_settings": {
+        "is_full_screen": false,
+        "is_prev_level_dependent": false
+      },
+      "game_benefits": {
+        "points": 5,
+        "special_contest": false,
+        "special_contest_desc": ""
+      },
+      "_id": "67b5dd298238d837c30fc50b",
+      "game_type_id": "64b5c5d8c8c4c5f8a9dcb123",
+      "game_type_name": "TRIVIA",
+      "game_level": "1",
+      "game_url": "https://nitishbm.github.io/Personal-Website/",
+      "publisher_name": "Game Studio Inc.",
+      "publish_date_time": "2025-01-18T01:00:00.000Z"
+    },
+    {
+      "game_type_settings": {
+        "is_full_screen": true,
+        "is_prev_level_dependent": true
+      },
+      "game_benefits": {
+        "points": 10,
+        "special_contest": true,
+        "special_contest_desc": "Win bonus rewards!"
+      },
+      "_id": "67b5dd298238d837c30fc50c",
+      "game_type_id": "64b5c5d8c8c4c5f8a9dcb124",
+      "game_type_name": "PUZZLE",
+      "game_level": "2",
+      "game_url": "https://example.com/puzzle-game",
+      "publisher_name": "Puzzle World",
+      "publish_date_time": "2025-02-01T12:30:00.000Z"
+    },
+    {
+      "game_type_settings": {
+        "is_full_screen": false,
+        "is_prev_level_dependent": false
+      },
+      "game_benefits": {
+        "points": 15,
+        "special_contest": false,
+        "special_contest_desc": ""
+      },
+      "_id": "67b5dd298238d837c30fc50d",
+      "game_type_id": "64b5c5d8c8c4c5f8a9dcb125",
+      "game_type_name": "ACTION",
+      "game_level": "3",
+      "game_url": "https://example.com/action-game",
+      "publisher_name": "Action Studios",
+      "publish_date_time": "2025-02-10T15:45:00.000Z"
+    },
+    {
+      "game_type_settings": {
+        "is_full_screen": true,
+        "is_prev_level_dependent": true
+      },
+      "game_benefits": {
+        "points": 20,
+        "special_contest": true,
+        "special_contest_desc": "Exclusive adventure mode!"
+      },
+      "_id": "67b5dd298238d837c30fc50e",
+      "game_type_id": "64b5c5d8c8c4c5f8a9dcb126",
+      "game_type_name": "ADVENTURE",
+      "game_level": "4",
+      "game_url": "https://example.com/adventure-game",
+      "publisher_name": "Adventure Inc.",
+      "publish_date_time": "2025-02-20T09:00:00.000Z"
+    },
+    {
+      "game_type_settings": {
+        "is_full_screen": false,
+        "is_prev_level_dependent": false
+      },
+      "game_benefits": {
+        "points": 25,
+        "special_contest": false,
+        "special_contest_desc": ""
+      },
+      "_id": "67b5dd298238d837c30fc50f",
+      "game_type_id": "64b5c5d8c8c4c5f8a9dcb127",
+      "game_type_name": "RACING",
+      "game_level": "5",
+      "game_url": "https://example.com/racing-game",
+      "publisher_name": "Speed Racers",
+      "publish_date_time": "2025-03-05T20:10:00.000Z"
+    },
+    {
+      "_id": "67b5dd298238d837c30fc510",
+      "game_type_name": "SPORTS",
+      "game_url": "https://example.com/sports-game"
+    }
+  ]
+}

@@ -4,19 +4,17 @@
       <h2 class="text-3xl font-bold text-blue-700 text-center mb-6">Quiz Game</h2>
 
       <div v-if="currentQuestion < questions.length" class="w-full">
-
-        <!-- Answer Inputs -->
-        <div class="flex justify-center gap-2 w-full overflow-x-auto flex-nowrap">
+        <div class="flex flex-wrap justify-center gap-1 w-full px-2 py-2">
           <template v-for="(groupLength, groupIndex) in answerDetails" :key="groupIndex">
             <template v-for="n in groupLength" :key="`${groupIndex}-${n}`">
-              <span class="w-8 text-center text-lg font-semibold border-b border-gray-400">
+              <div class="w-6 h-8 border-b border-gray-400 text-center">
                 <input v-model="userAnswers[currentQuestion][groupOffsets[groupIndex] + n - 1]" maxlength="1"
-                  class="w-full text-center bg-transparent text-gray-900 font-bold text-lg border-none focus:outline-none focus:ring-0"
+                  class="w-full h-full text-center bg-transparent text-gray-900 font-semibold text-sm border-none focus:outline-none"
                   @input="handleInput(groupOffsets[groupIndex] + n - 1, $event)"
                   @keydown.backspace="clearAnswer(groupOffsets[groupIndex] + n - 1, $event)" ref="answerInputs" />
-              </span>
+              </div>
             </template>
-            <span v-if="groupIndex < answerDetails.length - 1" class="inline-block w-4"></span>
+            <div v-if="groupIndex < answerDetails.length - 1" class="w-3"></div>
           </template>
         </div>
 
@@ -25,7 +23,7 @@
           Clue: {{ questions[currentQuestion] }}
         </p>
 
-        <!-- Feedback from backend -->
+        <!-- Feedback -->
         <p v-if="feedback" class="mt-3 text-md font-bold text-center"
           :class="{ 'text-green-600': isCorrect, 'text-red-600': !isCorrect }">
           {{ feedback }}
@@ -154,12 +152,24 @@ export default {
       const input = this.userAnswers[this.currentQuestion];
       if (input.some(char => char.trim() === '')) return;
 
-      const entered = input.join('').trim();
+      // Format input as group-wise words
+      let formattedAnswer = '';
+      let index = 0;
+
+      for (let i = 0; i < this.answerDetails.length; i++) {
+        const length = this.answerDetails[i];
+        const word = input.slice(index, index + length).join('');
+        formattedAnswer += word;
+        if (i < this.answerDetails.length - 1) {
+          formattedAnswer += ' ';
+        }
+        index += length;
+      }
 
       try {
         const params = new URLSearchParams();
         params.append('quiz', '680e7a791126b7cd7559a7ee');
-        params.append('answer', entered);
+        params.append('answer', formattedAnswer.trim());
 
         const res = await axios.post(
           'http://147.93.106.108:5100/gameplays/trivia/validate-answer',
@@ -168,19 +178,14 @@ export default {
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
             },
+            responseType: 'text',
           }
         );
 
-        // Handle backend response
-        const serverResponse = (res.data || '').toString().trim().toUpperCase();
+        const responseText = (res.data || '').trim();
+        this.feedback = responseText;
+        this.isCorrect = responseText.toUpperCase() === 'OK';
 
-        if (serverResponse === 'OK') {
-          this.feedback = '✅ Answer submitted!';
-          this.isCorrect = true;
-        } else {
-          this.feedback = '❌ ' + (res.data || 'Incorrect Answer!');
-          this.isCorrect = false;
-        }
       } catch (error) {
         console.error('Error validating answer:', error);
         this.feedback = '⚠️ Server error. Please try again.';

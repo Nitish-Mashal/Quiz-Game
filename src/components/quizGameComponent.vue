@@ -1,33 +1,38 @@
 <template>
-  <div class="h-screen w-screen flex items-center justify-center bg-gradient-to-r from-blue-100 to-purple-100 px-4">
+  <div
+    class="h-screen w-screen flex items-center justify-center bg-gradient-to-r from-blue-100 to-purple-100 px-4 relative">
+
+    <!-- Game Icon (fixed top-left) -->
+    <div class="absolute top-4 left-4">
+      <img src="/trivia.png" alt="Game Icon" class="w-12 h-12">
+    </div>
+
+    <!-- Main Container -->
     <div class="p-8 rounded-xl w-full max-w-lg flex flex-col items-center">
-      <h2 class="text-3xl font-bold text-blue-700 text-center mb-6">Quiz Game</h2>
+      <!-- Clue -->
+      <div class="text-lg font-semibold text-gray-800 text-center mt-2 mb-3 break-words">
+        {{ questions[currentQuestion] }}
+      </div>
+
+      <!-- Separator -->
+      <div class="w-full border-t border-gray-400 my-3"></div>
 
       <div v-if="currentQuestion < questions.length" class="w-full">
-        <div class="flex flex-wrap justify-center gap-1 w-full px-2 py-2">
+        <div class="flex flex-col gap-2 w-full px-2 py-2">
           <template v-for="(groupLength, groupIndex) in answerDetails" :key="groupIndex">
-            <template v-for="n in groupLength" :key="`${groupIndex}-${n}`">
-              <div class="w-6 h-8 border-b border-gray-400 text-center">
-                <input v-model="userAnswers[currentQuestion][groupOffsets[groupIndex] + n - 1]" maxlength="1"
-                  class="w-full h-full text-center bg-transparent text-gray-900 font-semibold text-sm border-none focus:outline-none"
-                  @input="handleInput(groupOffsets[groupIndex] + n - 1, $event)"
-                  @keydown.backspace="clearAnswer(groupOffsets[groupIndex] + n - 1, $event)" ref="answerInputs" />
-              </div>
-            </template>
-            <div v-if="groupIndex < answerDetails.length - 1" class="w-3"></div>
+            <!-- Each word is a row -->
+            <div class="flex justify-center gap-1">
+              <template v-for="n in groupLength" :key="`${groupIndex}-${n}`">
+                <div class="w-6 h-8 border-b border-gray-400 text-center">
+                  <input v-model="userAnswers[currentQuestion][groupOffsets[groupIndex] + n - 1]" maxlength="1"
+                    class="w-full h-full text-center bg-transparent text-gray-900 font-semibold text-sm border-none focus:outline-none"
+                    @input="handleInput(groupOffsets[groupIndex] + n - 1, $event)"
+                    @keydown.backspace="clearAnswer(groupOffsets[groupIndex] + n - 1, $event)" ref="answerInputs" />
+                </div>
+              </template>
+            </div>
           </template>
         </div>
-
-        <!-- Clue -->
-        <p class="text-lg font-semibold mb-4 text-center text-gray-800 pt-4 break-words">
-          Clue: {{ questions[currentQuestion] }}
-        </p>
-
-        <!-- Feedback -->
-        <p v-if="feedback" class="mt-3 text-md font-bold text-center"
-          :class="{ 'text-green-600': isCorrect, 'text-red-600': !isCorrect }">
-          {{ feedback }}
-        </p>
 
         <!-- Navigation -->
         <div class="flex justify-between mt-6 w-full">
@@ -40,7 +45,14 @@
             Next
           </button>
         </div>
+
+        <!-- Feedback -->
+        <p v-if="feedback" class="mt-3 text-md font-bold text-center"
+          :class="{ 'text-green-600': isCorrect, 'text-red-600': !isCorrect }">
+          {{ feedback }}
+        </p>
       </div>
+
 
       <div v-else class="text-center">
         <p class="text-xl font-semibold text-gray-800">🎉 Quiz Completed! 🎉</p>
@@ -51,10 +63,12 @@
       </div>
     </div>
   </div>
+
 </template>
 
 <script>
 import axios from 'axios';
+import confetti from "canvas-confetti";
 
 export default {
   data() {
@@ -86,7 +100,7 @@ export default {
     async fetchTriviaData() {
       try {
         const res = await axios.get(
-          'http://147.93.106.108:5100/gameplays/trivia/get-clues?quiz=680e7a791126b7cd7559a7ee'
+          'https://aqada.online/gameplays/trivia/get-clues?quiz=680e7a791126b7cd7559a7ee'
         );
 
         this.questions = res.data.clues || [];
@@ -172,19 +186,58 @@ export default {
         params.append('answer', formattedAnswer.trim());
 
         const res = await axios.post(
-          'http://147.93.106.108:5100/gameplays/trivia/validate-answer',
+          'https://aqada.online/gameplays/trivia/validate-answer',
           params,
           {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             responseType: 'text',
           }
         );
 
         const responseText = (res.data || '').trim();
-        this.feedback = responseText;
-        this.isCorrect = responseText.toUpperCase() === 'OK';
+
+        if (responseText.toUpperCase() === "OK") {
+          this.feedback = "🎉 Correct Answer!";
+          this.isCorrect = true;
+
+          // Trigger confetti
+          confetti({
+            particleCount: 120,
+            spread: 70,
+            origin: { y: 0.6 },
+          });
+
+          // Hide message and reset inputs after 3 sec
+          setTimeout(() => {
+            this.feedback = "";
+            this.isCorrect = false;
+
+            // clear input fields for current question
+            const total = this.getTotalLength(this.answerDetails);
+            this.userAnswers[this.currentQuestion] = Array(total).fill("");
+
+            this.focusFirstInput();
+          }, 3000);
+
+        } else if (responseText.toUpperCase() === "NOK") {
+          this.feedback = "❌ Wrong Answer!";
+          this.isCorrect = false;
+
+          // Hide message and reset inputs after 3 sec
+          setTimeout(() => {
+            this.feedback = "";
+            this.isCorrect = false;
+
+            // clear input fields for current question
+            const total = this.getTotalLength(this.answerDetails);
+            this.userAnswers[this.currentQuestion] = Array(total).fill("");
+
+            this.focusFirstInput();
+          }, 3000);
+        } else {
+          this.feedback = responseText; // fallback
+          this.isCorrect = false;
+        }
 
       } catch (error) {
         console.error('Error validating answer:', error);

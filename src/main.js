@@ -5,7 +5,7 @@ import App from './App.vue'
 
 import 'bootstrap/dist/css/bootstrap.css'
 import bootstrap from 'bootstrap/dist/js/bootstrap.bundle.js'
-
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 import router from './router';
 import './assets/tailwind.css'

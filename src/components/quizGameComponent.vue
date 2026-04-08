@@ -1,5 +1,6 @@
 <template>
   <div class="h-screen w-screen flex justify-center bg-gradient-to-r from-blue-100 to-purple-100 px-4 relative">
+    
     <!-- Game Icon -->
     <div class="absolute top-4 left-4">
       <img src="/trivia.png" alt="Game Icon" class="w-12 h-12" />
@@ -7,36 +8,47 @@
 
     <!-- Main Content -->
     <div class="w-full flex flex-col items-center relative mt-20">
-      <!-- Clue -->
-      <div class="p-6 rounded-xl w-full max-w-lg text-center">
-        <div class="text-lg font-semibold text-gray-800 break-words">
-          {{ questions[currentQuestion] || "" }}
-        </div>
 
-        <!-- Feedback -->
-        <p v-if="feedback" class="mt-4 text-md font-bold text-center"
-          :class="isCorrect ? 'text-green-600' : 'text-red-600'">
-          {{ feedback }}
-        </p>
+      <!-- ✅ LOADING -->
+      <div v-if="isLoading" class="text-center text-xl font-semibold mt-20">
+        ⏳ Loading Quiz...
       </div>
 
-      <!-- Divider -->
-      <div class="w-full max-w-6xl px-4 border-t-2 border-gray-500 my-10"></div>
+      <!-- ✅ GAME UI -->
+      <template v-else-if="questions.length && currentQuestion < questions.length">
 
-      <!-- Answer Area -->
-      <div class="p-6 w-full max-w-lg flex flex-col items-center" @click="handleFirstInteraction">
-        <div v-if="questions.length && currentQuestion < questions.length" class="w-full">
+        <!-- Clue -->
+        <div class="p-6 rounded-xl w-full max-w-lg text-center">
+          <div class="text-lg font-semibold text-gray-800 break-words">
+            {{ questions[currentQuestion] }}
+          </div>
+
+          <p v-if="feedback" class="mt-4 text-md font-bold"
+            :class="isCorrect ? 'text-green-600' : 'text-red-600'">
+            {{ feedback }}
+          </p>
+        </div>
+
+        <!-- Divider -->
+        <div class="w-full max-w-6xl px-4 border-t-2 border-gray-500 my-10"></div>
+
+        <!-- Answer Area -->
+        <div class="p-6 w-full max-w-lg flex flex-col items-center" @click="handleFirstInteraction">
+
           <div class="flex flex-col gap-2 w-full px-2 py-2">
             <template v-for="(groupLength, groupIndex) in answerDetails" :key="groupIndex">
               <div class="flex justify-center gap-1">
                 <template v-for="n in groupLength" :key="`${groupIndex}-${n}`">
                   <div class="w-6 h-8 border-b border-gray-500 text-center">
-                    <input v-model="userAnswers[currentQuestion][groupOffsets[groupIndex] + n - 1]" maxlength="1"
+                    <input
+                      v-model="userAnswers[currentQuestion][groupOffsets[groupIndex] + n - 1]"
+                      maxlength="1"
                       ref="answerInputs"
-                      class="w-full h-full text-center bg-transparent text-gray-900 font-semibold text-sm border-none focus:outline-none"
+                      class="w-full h-full text-center bg-transparent font-semibold text-sm focus:outline-none"
                       @input="handleInput(groupOffsets[groupIndex] + n - 1, $event)"
                       @keydown.backspace="clearAnswer(groupOffsets[groupIndex] + n - 1, $event)"
-                      :disabled="isSubmitting" />
+                      :disabled="isSubmitting"
+                    />
                   </div>
                 </template>
               </div>
@@ -46,7 +58,7 @@
           <!-- Navigation -->
           <div class="flex justify-between mt-6 w-full">
             <button @click="prevQuestion" :disabled="currentQuestion === 0"
-              class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg disabled:opacity-50">
+              class="px-4 py-2 bg-gray-300 rounded-lg disabled:opacity-50">
               Prev
             </button>
 
@@ -55,45 +67,28 @@
               Next
             </button>
           </div>
-        </div>
 
-        <!-- Quiz End -->
-        <div v-else class="text-center">
-          <p class="text-xl font-semibold text-gray-800">
-            🎉 Quiz Completed! 🎉
-          </p>
-          <button @click="resetQuiz" class="mt-4 bg-green-500 text-white px-6 py-2 rounded-lg">
-            Restart
-          </button>
         </div>
+      </template>
+
+      <!-- ✅ COMPLETED -->
+      <div v-else class="text-center mt-20">
+        <p class="text-xl font-semibold">🎉 Quiz Completed! 🎉</p>
+        <button @click="resetQuiz" class="mt-4 bg-green-500 text-white px-6 py-2 rounded-lg">
+          Restart
+        </button>
       </div>
+
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onMounted, nextTick } from "vue";
-import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 
-/* ✅ Extract URL parameters - SIMPLE AND DIRECT */
-const extractUrlParams = () => {
-  const params = new URLSearchParams(window.location.search);
-
-  const quiz = params.get("quiz");
-  const user = params.get("user");
-  const game_id = params.get("game_id");
-
-  console.log("✅ URL Parameters extracted:");
-  console.log("   QUIZ ID:", quiz);
-  console.log("   USER ID:", user);
-  console.log("   GAME ID:", game_id);
-  console.log("   Full URL:", window.location.href);
-
-  return { quiz, user, game_id };
-};
-
 /* STATE */
+const isLoading = ref(true);
 const hasFetchedTrivia = ref(false);
 const isSubmitting = ref(false);
 const hasUserInteracted = ref(false);
@@ -118,86 +113,61 @@ const elapsedSeconds = ref(0);
 let timerInterval = null;
 
 const startTimer = () => {
-  const storageKey = `trivia_start_time_${quizId.value}`;
-  const storedStart = localStorage.getItem(storageKey);
+  const key = `trivia_start_time_${quizId.value}`;
+  const stored = localStorage.getItem(key);
 
-  if (storedStart) {
-    startTime.value = parseInt(storedStart);
-  } else {
-    startTime.value = Date.now();
-    localStorage.setItem(storageKey, startTime.value);
-  }
+  startTime.value = stored ? parseInt(stored) : Date.now();
+  localStorage.setItem(key, startTime.value);
 
   timerInterval = setInterval(() => {
-    elapsedSeconds.value = Math.floor(
-      (Date.now() - startTime.value) / 1000
-    );
+    elapsedSeconds.value = Math.floor((Date.now() - startTime.value) / 1000);
   }, 1000);
 };
 
-/* MOUNT */
-onMounted(async () => {
-  await router.isReady();
+/* URL PARAMS */
+const extractParams = () => {
+  const params = new URLSearchParams(window.location.search);
 
-  // ✅ Extract parameters from URL
-  const params = extractUrlParams();
+  return {
+    quiz: params.get("quiz"),
+    user: params.get("user"),
+    game_id: params.get("game_id"),
+  };
+};
+
+/* INIT */
+onMounted(async () => {
+  const params = extractParams();
 
   quizId.value = params.quiz;
   userId.value = params.user;
   gameId.value = params.game_id;
 
-  // ✅ Validate required params
   if (!quizId.value) {
-    console.error("❌ Quiz ID is required but missing from URL");
+    console.error("❌ Missing quiz ID");
+    isLoading.value = false;
     return;
   }
 
-  if (!userId.value) {
-    console.error("❌ User ID is required but missing from URL");
-    console.log("⚠️ Make sure gameArea.vue passes ?user=USERID in the URL");
-    return;
-  }
-
-  console.log("✅ Quiz initialized with:", { 
-    quizId: quizId.value, 
-    userId: userId.value,
-    gameId: gameId.value
-  });
-
-  // ✅ Load trivia data and start timer
   await fetchTriviaData();
   startTimer();
 });
 
 /* HELPERS */
-const getTotalLength = (details) =>
-  details.reduce((sum, v) => sum + v, 0);
+const getTotalLength = (arr) => arr.reduce((a, b) => a + b, 0);
 
-const calculateGroupOffsets = () => {
+const calculateOffsets = () => {
   let sum = 0;
-
-  groupOffsets.value = answerDetails.value.map((len) => {
+  groupOffsets.value = answerDetails.value.map(len => {
     const offset = sum;
     sum += len;
     return offset;
   });
 };
 
-const focusFirstInput = () => {
-  nextTick(() => {
-    answerInputs.value?.[0]?.focus();
-  });
-};
-
-/* API */
+/* FETCH DATA */
 const fetchTriviaData = async () => {
-  if (hasFetchedTrivia.value) return;
-  if (!quizId.value) {
-    console.error("❌ Quiz ID is missing");
-    return;
-  }
-
-  hasFetchedTrivia.value = true;
+  if (hasFetchedTrivia.value && questions.value.length) return;
 
   try {
     const res = await axios.get(
@@ -205,236 +175,163 @@ const fetchTriviaData = async () => {
       { params: { quiz: quizId.value } }
     );
 
-    questions.value = res.data?.clues || [];
-    answerDetails.value = res.data?.answer_details || [];
+    console.log("API RESPONSE:", res.data);
+
+    // ✅ Flexible parsing
+    const data = res.data?.data || res.data;
+
+    questions.value = data?.clues || [];
+    answerDetails.value = data?.answer_details || [];
+
+    if (!questions.value.length) {
+      console.error("❌ No questions received");
+    }
 
     const total = getTotalLength(answerDetails.value);
+    userAnswers.value = questions.value.map(() => Array(total).fill(""));
 
-    userAnswers.value = questions.value.map(() =>
-      Array(total).fill("")
-    );
-
-    calculateGroupOffsets();
-    console.log("✅ Trivia data loaded successfully");
+    calculateOffsets();
+    hasFetchedTrivia.value = true;
 
   } catch (err) {
-    console.error("❌ Fetch trivia error:", err);
+    console.error("❌ Fetch error:", err);
+  } finally {
+    isLoading.value = false;
   }
 };
 
-/* INPUT LOGIC */
-const handleInput = (index, event) => {
+/* INPUT */
+const handleInput = (index, e) => {
   if (isSubmitting.value) return;
 
-  userAnswers.value[currentQuestion.value][index] =
-    event.target.value.slice(0, 1);
+  userAnswers.value[currentQuestion.value][index] = e.target.value.slice(0, 1);
 
-  moveToNext(index);
-};
-
-const moveToNext = (index) => {
   if (index < userAnswers.value[currentQuestion.value].length - 1) {
-    nextTick(() => {
-      answerInputs.value?.[index + 1]?.focus();
-    });
+    nextTick(() => answerInputs.value[index + 1]?.focus());
   }
 
   autoSubmit();
 };
 
-const clearAnswer = (index, event) => {
-  event.preventDefault();
-
-  if (isSubmitting.value) return;
+const clearAnswer = (index, e) => {
+  e.preventDefault();
 
   if (userAnswers.value[currentQuestion.value][index]) {
     userAnswers.value[currentQuestion.value][index] = "";
     return;
   }
 
-  const prev = index - 1;
-
-  if (prev >= 0) {
-    userAnswers.value[currentQuestion.value][prev] = "";
-
-    nextTick(() => {
-      answerInputs.value?.[prev]?.focus();
-    });
+  if (index > 0) {
+    userAnswers.value[currentQuestion.value][index - 1] = "";
+    nextTick(() => answerInputs.value[index - 1]?.focus());
   }
 };
 
-/* HIGHEST CLUE LOGIC */
-const updateHighestClue = () => {
-  const key = `trivia_max_${quizId.value}`;
-  let highest = parseInt(localStorage.getItem(key) || 0);
-  highest = Math.max(highest, currentQuestion.value + 1);
-  localStorage.setItem(key, highest);
-  return highest;
-};
-
-/* SUBMIT WITH USERID */
+/* SUBMIT */
 const autoSubmit = async () => {
   const input = userAnswers.value[currentQuestion.value];
-
-  if (input.some((c) => c.trim() === "")) return;
+  if (input.some(c => !c.trim())) return;
 
   isSubmitting.value = true;
 
   let answer = "";
-  let idx = 0;
+  let i = 0;
 
   for (let len of answerDetails.value) {
-    answer += input.slice(idx, idx + len).join("") + " ";
-    idx += len;
+    answer += input.slice(i, i + len).join("") + " ";
+    i += len;
   }
 
   try {
-    const params = new URLSearchParams();
-    params.append("quiz", quizId.value);
-    params.append("answer", answer.trim());
-
     const res = await axios.post(
       "https://aqada.online/gameplays/trivia/validate-answer",
-      params,
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      new URLSearchParams({
+        quiz: quizId.value,
+        answer: answer.trim()
+      })
     );
 
     isCorrect.value = res.data?.trim().toUpperCase() === "OK";
 
-    feedback.value = isCorrect.value
-      ? "🎉 Correct Answer!"
-      : "❌ Wrong Answer!";
+    feedback.value = isCorrect.value ? "🎉 Correct!" : "❌ Wrong!";
 
-    /* GAME COMPLETED */
-    if (isCorrect.value) {
-      try {
-        const highestClue = updateHighestClue();
-
-        const formData = new URLSearchParams();
-        formData.append("game_id", gameId.value || quizId.value);
-
-        // ✅ Include userId
-        if (userId.value) {
-          formData.append("user", userId.value);
-          console.log("✅ userId included in game-completed API:", userId.value);
-        } else {
-          console.error("❌ CRITICAL: userId is missing!");
-        }
-
-        formData.append(
-          "params",
-          JSON.stringify({
-            question_no: highestClue,
-            seconds: elapsedSeconds.value
-          })
-        );
-
-        console.log("✅ Game Completed:", {
-          game_id: gameId.value || quizId.value,
-          user: userId.value,
-          question_no: highestClue,
-          seconds: elapsedSeconds.value
-        });
-
-        await axios.post(
-          "https://aqada.online/games/game-completed",
-          formData,
-          {
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-          }
-        );
-
-        console.log("✅ Game completed API call successful with userId!");
-
-        clearInterval(timerInterval);
-        localStorage.removeItem(`trivia_start_time_${quizId.value}`);
-
-      } catch (err) {
-        console.error("❌ Game completed API error:", err);
-      }
-    }
-
-    setTimeout(() => {
-      feedback.value = "";
-
-      if (!isCorrect.value) {
-        userAnswers.value[currentQuestion.value] =
-          userAnswers.value[currentQuestion.value].map(() => "");
-      }
-
-      isCorrect.value = false;
-      isSubmitting.value = false;
-
-      if (hasUserInteracted.value) {
-        focusFirstInput();
-      }
-
-    }, 2500);
+    if (isCorrect.value) await completeGame();
 
   } catch (err) {
     console.error(err);
+  }
+
+  setTimeout(() => {
+    feedback.value = "";
     isSubmitting.value = false;
+
+    if (!isCorrect.value) {
+      userAnswers.value[currentQuestion.value] =
+        userAnswers.value[currentQuestion.value].map(() => "");
+    }
+
+    isCorrect.value = false;
+  }, 2000);
+};
+
+/* COMPLETE GAME */
+const completeGame = async () => {
+  try {
+    const form = new URLSearchParams();
+
+    form.append("game_id", gameId.value || quizId.value);
+
+    if (userId.value) {
+      form.append("user", userId.value);
+    }
+
+    form.append("params", JSON.stringify({
+      question_no: currentQuestion.value + 1,
+      seconds: elapsedSeconds.value
+    }));
+
+    console.log("🚀 Sending game-completed:", Object.fromEntries(form));
+
+    await axios.post(
+      "https://aqada.online/games/game-completed",
+      form
+    );
+
+    console.log("✅ Game completed success");
+
+    clearInterval(timerInterval);
+    localStorage.removeItem(`trivia_start_time_${quizId.value}`);
+
+  } catch (err) {
+    console.error("❌ Game complete error:", err);
   }
 };
 
-/* NAVIGATION */
-const nextQuestion = () => {
-  if (currentQuestion.value < questions.value.length - 1) {
-    currentQuestion.value++;
-  }
-};
+/* NAV */
+const nextQuestion = () => currentQuestion.value++;
+const prevQuestion = () => currentQuestion.value--;
 
-const prevQuestion = () => {
-  if (currentQuestion.value > 0) {
-    currentQuestion.value--;
-  }
-};
-
+/* RESET */
 const resetQuiz = () => {
   currentQuestion.value = 0;
   feedback.value = "";
-  isCorrect.value = false;
 
   const total = getTotalLength(answerDetails.value);
   userAnswers.value = questions.value.map(() => Array(total).fill(""));
 
-  localStorage.removeItem(`trivia_start_time_${quizId.value}`);
-
   startTimer();
 };
 
-/* USER INTERACTION */
+/* UX */
 const handleFirstInteraction = () => {
   if (hasUserInteracted.value) return;
   hasUserInteracted.value = true;
-  focusFirstInput();
+  nextTick(() => answerInputs.value[0]?.focus());
 };
 
-/* WATCHERS */
+/* WATCH */
 watch(currentQuestion, () => {
   feedback.value = "";
   isCorrect.value = false;
-
-  const total = getTotalLength(answerDetails.value);
-
-  if (!userAnswers.value[currentQuestion.value]) {
-    userAnswers.value[currentQuestion.value] = Array(total).fill("");
-  }
-
-  calculateGroupOffsets();
 });
-
-// ✅ Add missing imports
-const route = useRoute();
-const router = useRouter();
-
 </script>
-
-<style scoped>
-input:disabled {
-  background-color: transparent;
-  color: #bbb;
-}
-</style>

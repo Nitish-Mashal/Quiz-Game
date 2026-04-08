@@ -1,6 +1,6 @@
 <template>
   <div class="h-screen w-screen flex justify-center bg-gradient-to-r from-blue-100 to-purple-100 px-4 relative">
-    
+
     <!-- Game Icon -->
     <div class="absolute top-4 left-4">
       <img src="/trivia.png" alt="Game Icon" class="w-12 h-12" />
@@ -23,8 +23,7 @@
             {{ questions[currentQuestion] }}
           </div>
 
-          <p v-if="feedback" class="mt-4 text-md font-bold"
-            :class="isCorrect ? 'text-green-600' : 'text-red-600'">
+          <p v-if="feedback" class="mt-4 text-md font-bold" :class="isCorrect ? 'text-green-600' : 'text-red-600'">
             {{ feedback }}
           </p>
         </div>
@@ -40,15 +39,12 @@
               <div class="flex justify-center gap-1">
                 <template v-for="n in groupLength" :key="`${groupIndex}-${n}`">
                   <div class="w-6 h-8 border-b border-gray-500 text-center">
-                    <input
-                      v-model="userAnswers[currentQuestion][groupOffsets[groupIndex] + n - 1]"
-                      maxlength="1"
+                    <input v-model="userAnswers[currentQuestion][groupOffsets[groupIndex] + n - 1]" maxlength="1"
                       ref="answerInputs"
                       class="w-full h-full text-center bg-transparent font-semibold text-sm focus:outline-none"
                       @input="handleInput(groupOffsets[groupIndex] + n - 1, $event)"
                       @keydown.backspace="clearAnswer(groupOffsets[groupIndex] + n - 1, $event)"
-                      :disabled="isSubmitting"
-                    />
+                      :disabled="isSubmitting" />
                   </div>
                 </template>
               </div>
@@ -112,6 +108,9 @@ const startTime = ref(null);
 const elapsedSeconds = ref(0);
 let timerInterval = null;
 
+const isFirstLoad = ref(true);
+const maxQuestionReached = ref(0);
+
 const startTimer = () => {
   const key = `trivia_start_time_${quizId.value}`;
   const stored = localStorage.getItem(key);
@@ -151,6 +150,11 @@ onMounted(async () => {
 
   await fetchTriviaData();
   startTimer();
+
+  // ✅ Mark first load complete AFTER initial render
+  nextTick(() => {
+    isFirstLoad.value = false;
+  });
 });
 
 /* HELPERS */
@@ -286,7 +290,7 @@ const completeGame = async () => {
     }
 
     form.append("params", JSON.stringify({
-      question_no: currentQuestion.value + 1,
+      question_no: maxQuestionReached.value + 1, // ✅ FIXED
       seconds: elapsedSeconds.value
     }));
 
@@ -308,7 +312,13 @@ const completeGame = async () => {
 };
 
 /* NAV */
-const nextQuestion = () => currentQuestion.value++;
+const nextQuestion = () => {
+  currentQuestion.value++;
+
+  if (currentQuestion.value > maxQuestionReached.value) {
+    maxQuestionReached.value = currentQuestion.value;
+  }
+};
 const prevQuestion = () => currentQuestion.value--;
 
 /* RESET */
@@ -330,8 +340,18 @@ const handleFirstInteraction = () => {
 };
 
 /* WATCH */
-watch(currentQuestion, () => {
+watch(currentQuestion, (newVal) => {
   feedback.value = "";
   isCorrect.value = false;
+
+  if (newVal > maxQuestionReached.value) {
+    maxQuestionReached.value = newVal;
+  }
+
+  if (!isFirstLoad.value) {
+    nextTick(() => {
+      answerInputs.value?.[0]?.focus();
+    });
+  }
 });
 </script>

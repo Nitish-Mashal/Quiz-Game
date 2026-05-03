@@ -7,14 +7,14 @@
     </div>
 
     <!-- Main Content -->
-    <div class="w-full flex flex-col items-center relative mt-20">
+    <div class="w-full flex flex-col items-center relative mt-20 pb-20">
 
-      <!-- ✅ LOADING -->
+      <!-- LOADING -->
       <div v-if="isLoading" class="text-center text-xl font-semibold mt-20">
         ⏳ Loading Quiz...
       </div>
 
-      <!-- ✅ GAME UI -->
+      <!-- GAME UI -->
       <template v-else-if="questions.length && currentQuestion < questions.length">
 
         <!-- Clue -->
@@ -44,7 +44,7 @@
                       class="w-full h-full text-center bg-transparent font-semibold text-sm focus:outline-none"
                       @input="handleInput(groupOffsets[groupIndex] + n - 1, $event)"
                       @keydown.backspace="clearAnswer(groupOffsets[groupIndex] + n - 1, $event)"
-                      :disabled="isSubmitting" />
+                      :disabled="isSubmitting || isGameCompleted" />
                   </div>
                 </template>
               </div>
@@ -67,9 +67,10 @@
         </div>
       </template>
 
-      <!-- ✅ COMPLETED -->
+      <!-- COMPLETED -->
       <div v-else class="text-center mt-20">
         <p class="text-xl font-semibold">🎉 Quiz Completed! 🎉</p>
+
         <button @click="resetQuiz" class="mt-4 bg-green-500 text-white px-6 py-2 rounded-lg">
           Restart
         </button>
@@ -88,6 +89,7 @@ const isLoading = ref(true);
 const hasFetchedTrivia = ref(false);
 const isSubmitting = ref(false);
 const hasUserInteracted = ref(false);
+const isGameCompleted = ref(false);
 
 const currentQuestion = ref(0);
 const questions = ref([]);
@@ -111,6 +113,12 @@ let timerInterval = null;
 const isFirstLoad = ref(true);
 const maxQuestionReached = ref(0);
 
+/* STORAGE KEY */
+const getCompletedKey = () => {
+  return `trivia_completed_${quizId.value}`;
+};
+
+/* TIMER */
 const startTimer = () => {
   const key = `trivia_start_time_${quizId.value}`;
   const stored = localStorage.getItem(key);
@@ -119,7 +127,9 @@ const startTimer = () => {
   localStorage.setItem(key, startTime.value);
 
   timerInterval = setInterval(() => {
-    elapsedSeconds.value = Math.floor((Date.now() - startTime.value) / 1000);
+    elapsedSeconds.value = Math.floor(
+      (Date.now() - startTime.value) / 1000
+    );
   }, 1000);
 };
 
@@ -129,8 +139,6 @@ const extractParams = () => {
 
   return {
     quiz: params.get("quiz"),
-    user: params.get("user"),
-    game_id: params.get("game_id"),
   };
 };
 
@@ -139,37 +147,45 @@ onMounted(async () => {
   const params = extractParams();
 
   quizId.value = params.quiz;
-  userId.value = params.user;
-  gameId.value = params.game_id;
+
+  /* TAKE FROM LOCALSTORAGE */
+  userId.value = localStorage.getItem("userId");
+  gameId.value = localStorage.getItem("gameId");
 
   if (!quizId.value) {
-    console.error("❌ Missing quiz ID");
     isLoading.value = false;
     return;
   }
 
-  await fetchTriviaData();
-  startTimer();
+  isGameCompleted.value =
+    localStorage.getItem(getCompletedKey()) === "true";
 
-  // ✅ Mark first load complete AFTER initial render
+  await fetchTriviaData();
+
+  if (!isGameCompleted.value) {
+    startTimer();
+  }
+
   nextTick(() => {
     isFirstLoad.value = false;
   });
 });
 
 /* HELPERS */
-const getTotalLength = (arr) => arr.reduce((a, b) => a + b, 0);
+const getTotalLength = (arr) =>
+  arr.reduce((a, b) => a + b, 0);
 
 const calculateOffsets = () => {
   let sum = 0;
-  groupOffsets.value = answerDetails.value.map(len => {
+
+  groupOffsets.value = answerDetails.value.map((len) => {
     const offset = sum;
     sum += len;
     return offset;
   });
 };
 
-/* FETCH DATA */
+/* FETCH */
 const fetchTriviaData = async () => {
   if (hasFetchedTrivia.value && questions.value.length) return;
 
@@ -179,26 +195,22 @@ const fetchTriviaData = async () => {
       { params: { quiz: quizId.value } }
     );
 
-    console.log("API RESPONSE:", res.data);
-
-    // ✅ Flexible parsing
     const data = res.data?.data || res.data;
 
     questions.value = data?.clues || [];
     answerDetails.value = data?.answer_details || [];
 
-    if (!questions.value.length) {
-      console.error("❌ No questions received");
-    }
-
     const total = getTotalLength(answerDetails.value);
-    userAnswers.value = questions.value.map(() => Array(total).fill(""));
+
+    userAnswers.value = questions.value.map(() =>
+      Array(total).fill("")
+    );
 
     calculateOffsets();
     hasFetchedTrivia.value = true;
 
   } catch (err) {
-    console.error("❌ Fetch error:", err);
+    console.error(err);
   } finally {
     isLoading.value = false;
   }
@@ -206,12 +218,18 @@ const fetchTriviaData = async () => {
 
 /* INPUT */
 const handleInput = (index, e) => {
-  if (isSubmitting.value) return;
+  if (isSubmitting.value || isGameCompleted.value) return;
 
-  userAnswers.value[currentQuestion.value][index] = e.target.value.slice(0, 1);
+  userAnswers.value[currentQuestion.value][index] =
+    e.target.value.slice(0, 1);
 
-  if (index < userAnswers.value[currentQuestion.value].length - 1) {
-    nextTick(() => answerInputs.value[index + 1]?.focus());
+  if (
+    index <
+    userAnswers.value[currentQuestion.value].length - 1
+  ) {
+    nextTick(() =>
+      answerInputs.value[index + 1]?.focus()
+    );
   }
 
   autoSubmit();
@@ -220,21 +238,28 @@ const handleInput = (index, e) => {
 const clearAnswer = (index, e) => {
   e.preventDefault();
 
-  if (userAnswers.value[currentQuestion.value][index]) {
+  if (
+    userAnswers.value[currentQuestion.value][index]
+  ) {
     userAnswers.value[currentQuestion.value][index] = "";
     return;
   }
 
   if (index > 0) {
     userAnswers.value[currentQuestion.value][index - 1] = "";
-    nextTick(() => answerInputs.value[index - 1]?.focus());
+
+    nextTick(() =>
+      answerInputs.value[index - 1]?.focus()
+    );
   }
 };
 
 /* SUBMIT */
 const autoSubmit = async () => {
-  const input = userAnswers.value[currentQuestion.value];
-  if (input.some(c => !c.trim())) return;
+  const input =
+    userAnswers.value[currentQuestion.value];
+
+  if (input.some((c) => !c.trim())) return;
 
   isSubmitting.value = true;
 
@@ -242,7 +267,8 @@ const autoSubmit = async () => {
   let i = 0;
 
   for (let len of answerDetails.value) {
-    answer += input.slice(i, i + len).join("") + " ";
+    answer +=
+      input.slice(i, i + len).join("") + " ";
     i += len;
   }
 
@@ -251,15 +277,20 @@ const autoSubmit = async () => {
       "https://aqada.online/gameplays/trivia/validate-answer",
       new URLSearchParams({
         quiz: quizId.value,
-        answer: answer.trim()
+        answer: answer.trim(),
       })
     );
 
-    isCorrect.value = res.data?.trim().toUpperCase() === "OK";
+    isCorrect.value =
+      res.data?.trim().toUpperCase() === "OK";
 
-    feedback.value = isCorrect.value ? "🎉 Correct!" : "❌ Wrong!";
+    feedback.value = isCorrect.value
+      ? "🎉 Correct!"
+      : "❌ Wrong!";
 
-    if (isCorrect.value) await completeGame();
+    if (isCorrect.value) {
+      await completeGame();
+    }
 
   } catch (err) {
     console.error(err);
@@ -271,7 +302,9 @@ const autoSubmit = async () => {
 
     if (!isCorrect.value) {
       userAnswers.value[currentQuestion.value] =
-        userAnswers.value[currentQuestion.value].map(() => "");
+        userAnswers.value[currentQuestion.value].map(
+          () => ""
+        );
     }
 
     isCorrect.value = false;
@@ -283,31 +316,48 @@ const completeGame = async () => {
   try {
     const form = new URLSearchParams();
 
-    form.append("game_id", gameId.value || quizId.value);
+    form.append("game_id", gameId.value || "");
+    form.append("user", userId.value || "");
 
-    if (userId.value) {
-      form.append("user", userId.value);
-    }
+    form.append(
+      "params",
+      JSON.stringify({
+        question_no: maxQuestionReached.value + 1,
+        seconds: elapsedSeconds.value,
+      })
+    );
 
-    form.append("params", JSON.stringify({
-      question_no: maxQuestionReached.value + 1, // ✅ FIXED
-      seconds: elapsedSeconds.value
-    }));
-
-    console.log("🚀 Sending game-completed:", Object.fromEntries(form));
-
-    await axios.post(
+    const res = await axios.post(
       "https://aqada.online/games/game-completed",
       form
     );
 
-    console.log("✅ Game completed success");
+    if (res.data === "OK" || res.status === 200) {
+      isGameCompleted.value = true;
 
-    clearInterval(timerInterval);
-    localStorage.removeItem(`trivia_start_time_${quizId.value}`);
+      localStorage.setItem(
+        getCompletedKey(),
+        "true"
+      );
+
+      /* =====================================
+      ✅ ADD THIS NEW BLOCK
+      send completed game id to parent
+      ===================================== */
+      localStorage.setItem(
+        "completed_game_id",
+        gameId.value
+      );
+
+      clearInterval(timerInterval);
+
+      localStorage.removeItem(
+        `trivia_start_time_${quizId.value}`
+      );
+    }
 
   } catch (err) {
-    console.error("❌ Game complete error:", err);
+    console.error(err);
   }
 };
 
@@ -315,28 +365,46 @@ const completeGame = async () => {
 const nextQuestion = () => {
   currentQuestion.value++;
 
-  if (currentQuestion.value > maxQuestionReached.value) {
-    maxQuestionReached.value = currentQuestion.value;
+  if (
+    currentQuestion.value >
+    maxQuestionReached.value
+  ) {
+    maxQuestionReached.value =
+      currentQuestion.value;
   }
 };
-const prevQuestion = () => currentQuestion.value--;
+
+const prevQuestion = () => {
+  currentQuestion.value--;
+};
 
 /* RESET */
 const resetQuiz = () => {
   currentQuestion.value = 0;
   feedback.value = "";
 
-  const total = getTotalLength(answerDetails.value);
-  userAnswers.value = questions.value.map(() => Array(total).fill(""));
+  const total = getTotalLength(
+    answerDetails.value
+  );
 
-  startTimer();
+  userAnswers.value = questions.value.map(() =>
+    Array(total).fill("")
+  );
+
+  if (!isGameCompleted.value) {
+    startTimer();
+  }
 };
 
 /* UX */
 const handleFirstInteraction = () => {
   if (hasUserInteracted.value) return;
+
   hasUserInteracted.value = true;
-  nextTick(() => answerInputs.value[0]?.focus());
+
+  nextTick(() => {
+    answerInputs.value[0]?.focus();
+  });
 };
 
 /* WATCH */

@@ -19,9 +19,7 @@
 
         <!-- Clue -->
         <div class="p-6 rounded-xl w-full max-w-lg text-center">
-          <div class="text-lg font-semibold text-gray-800 break-words">
-            {{ questions[currentQuestion] }}
-          </div>
+          <div class="text-lg font-semibold text-gray-800 break-words" v-html="questions[currentQuestion]"></div>
 
           <p v-if="feedback" class="mt-4 text-md font-bold" :class="isCorrect ? 'text-green-600' : 'text-red-600'">
             {{ feedback }}

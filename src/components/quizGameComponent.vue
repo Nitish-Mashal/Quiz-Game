@@ -399,10 +399,6 @@ const handleFirstInteraction = () => {
   if (hasUserInteracted.value) return;
 
   hasUserInteracted.value = true;
-
-  nextTick(() => {
-    answerInputs.value[0]?.focus();
-  });
 };
 
 /* WATCH */
@@ -412,12 +408,6 @@ watch(currentQuestion, (newVal) => {
 
   if (newVal > maxQuestionReached.value) {
     maxQuestionReached.value = newVal;
-  }
-
-  if (!isFirstLoad.value) {
-    nextTick(() => {
-      answerInputs.value?.[0]?.focus();
-    });
   }
 });
 </script>
